@@ -433,9 +433,14 @@
     start().then(function () {
       el.startOverlay.hidden = true;
     }).catch(function (err) {
-      var msg = err && err.name === 'NotAllowedError'
-        ? 'マイクの使用が許可されていません。設定 › Safari › マイク で許可してください。'
-        : (err && err.message) || 'マイクを開始できませんでした。';
+      var msg;
+      if (err && err.name === 'NotAllowedError') {
+        msg = window.top !== window.self
+          ? 'マイクを使う許可が得られませんでした。埋め込み表示ではマイクを使えないことがあります。Safari で直接開くか、GitHub Pages などに公開した URL から開いてください。'
+          : 'マイクの使用が許可されていません。設定 › Safari › マイク で許可してください。';
+      } else {
+        msg = (err && err.message) || 'マイクを開始できませんでした。';
+      }
       el.startOverlay.hidden = false;
       el.startOverlay.querySelector('p').textContent = msg;
     }).then(function () { btn.disabled = false; });
@@ -452,11 +457,13 @@
   setMode(state.mode);
   resetReadout();
 
+  /* sw:start */
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js').catch(function () {});
     });
   }
+  /* sw:end */
 
   // expose a little for debugging / tests
   window.PocketTuner = { state: state, start: start, stop: stop, update: update, strings: function () { return strings; } };
