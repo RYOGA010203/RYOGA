@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>PocketTuner</title>
+  <meta name="description" content="iPhone のマイクで使えるギター・ベース・ウクレレ用チューナー">
+  <meta name="theme-color" content="#101418">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tuner">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <button class="tuning-btn" id="tuningBtn" type="button" aria-haspopup="dialog">
+        <span class="tuning-icon" id="tuningIcon">🎸</span>
+        <span class="tuning-text">
+          <span class="tuning-inst" id="tuningInst">ギター</span>
+          <span class="tuning-name" id="tuningName">スタンダード</span>
+        </span>
+        <span class="chev">▾</span>
+      </button>
+      <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定">⚙︎</button>
+    </header>
+
+    <main class="stage">
+      <div class="readout">
+        <div class="status" id="status">弦を弾いてください</div>
+        <div class="note-wrap">
+          <span class="accidental-space"></span>
+          <span class="note" id="note">–</span>
+          <span class="octave" id="octave"></span>
+        </div>
+        <div class="cents" id="cents">&nbsp;</div>
+      </div>
+
+      <div class="gauge-wrap">
+        <svg class="gauge" id="gauge" viewBox="0 0 320 190" aria-hidden="true">
+          <defs>
+            <linearGradient id="arcGrad" x1="0" x2="1">
+              <stop offset="0" stop-color="#ff5d5d"/>
+              <stop offset="0.42" stop-color="#ffb04d"/>
+              <stop offset="0.5" stop-color="#3ddc84"/>
+              <stop offset="0.58" stop-color="#ffb04d"/>
+              <stop offset="1" stop-color="#ff5d5d"/>
+            </linearGradient>
+          </defs>
+          <path class="arc-bg" d="M 30 170 A 130 130 0 0 1 290 170"/>
+          <path class="arc-grad" d="M 30 170 A 130 130 0 0 1 290 170"/>
+          <path class="arc-green" d="M 148.9 40.5 A 130 130 0 0 1 171.1 40.5"/>
+          <g class="ticks" id="ticks"></g>
+          <g class="needle" id="needle">
+            <line x1="160" y1="170" x2="160" y2="52"/>
+            <circle cx="160" cy="170" r="7"/>
+          </g>
+          <text class="tick-label" x="30" y="188">-50</text>
+          <text class="tick-label" x="160" y="188" text-anchor="middle">0</text>
+          <text class="tick-label" x="290" y="188" text-anchor="end">+50</text>
+        </svg>
+        <div class="flat-sharp"><span>♭</span><span>♯</span></div>
+      </div>
+
+      <div class="freq" id="freq">&nbsp;</div>
+    </main>
+
+    <section class="strings" id="strings" aria-label="弦"></section>
+
+    <footer class="bottom">
+      <div class="mode" role="group" aria-label="モード">
+        <button type="button" class="mode-btn active" id="modeAuto">自動</button>
+        <button type="button" class="mode-btn" id="modeManual">手動</button>
+      </div>
+      <button type="button" class="mic-btn" id="micBtn">
+        <span class="mic-dot"></span><span id="micLabel">マイク開始</span>
+      </button>
+    </footer>
+
+    <div class="overlay" id="startOverlay">
+      <div class="overlay-card">
+        <div class="overlay-logo">🎸</div>
+        <h1>PocketTuner</h1>
+        <p>マイクで音を拾って、弦ごとにチューニングできます。<br>開始するとマイクの使用許可を求められます。</p>
+        <button type="button" class="primary" id="startBtn">チューナーを開始</button>
+        <p class="hint">音が出ない・拾わないときは、サイレントスイッチと音量、<br>Safari のマイク許可を確認してください。</p>
+      </div>
+    </div>
+
+    <div class="sheet" id="tuningSheet" hidden>
+      <div class="sheet-backdrop" data-close></div>
+      <div class="sheet-panel" role="dialog" aria-label="チューニングを選択">
+        <div class="sheet-handle"></div>
+        <div class="sheet-tabs" id="instTabs"></div>
+        <div class="sheet-list" id="tuningList"></div>
+      </div>
+    </div>
+
+    <div class="sheet" id="settingsSheet" hidden>
+      <div class="sheet-backdrop" data-close></div>
+      <div class="sheet-panel" role="dialog" aria-label="設定">
+        <div class="sheet-handle"></div>
+        <h2>設定</h2>
+        <div class="setting-row">
+          <div>
+            <div class="setting-title">基準ピッチ A4</div>
+            <div class="setting-sub">通常は 440 Hz</div>
+          </div>
+          <div class="stepper">
+            <button type="button" id="a4Minus" aria-label="下げる">−</button>
+            <span id="a4Value">440</span>
+            <button type="button" id="a4Plus" aria-label="上げる">+</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-title">弦をタップで参考音を鳴らす</div>
+            <div class="setting-sub">手動モードで弦を選ぶと音が鳴ります</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="playTone" checked><span></span></label>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-title">合ったときに振動</div>
+            <div class="setting-sub">対応端末のみ</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="haptics" checked><span></span></label>
+        </div>
+        <p class="about">PocketTuner v1 · マイクの音声は端末内で処理され、送信されません。</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/pitch.js"></script>
+  <script src="js/tunings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

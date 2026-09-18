@@ -1,0 +1,10 @@
+{
+  "name": "pockettuner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "iPhone の Safari で動くギター・ベース・ウクレレ用チューナー (PWA)",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test test/pitch.test.js"
+  }
+}
