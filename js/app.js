@@ -6,13 +6,17 @@
   var el = {
     tuningBtn: $('tuningBtn'), tuningIcon: $('tuningIcon'), tuningInst: $('tuningInst'), tuningName: $('tuningName'),
     settingsBtn: $('settingsBtn'), status: $('status'), note: $('note'), octave: $('octave'), cents: $('cents'),
-    gauge: $('gauge'), ticks: $('ticks'), needle: $('needle'), freq: $('freq'), strings: $('strings'),
+    gauge: $('gauge'), ticks: $('ticks'), needle: $('needle'), freq: $('freq'),
+    stringsWrap: $('stringsWrap'), strings: $('strings'), stringsTools: $('stringsTools'), editBtn: $('editBtn'), resetBtn: $('resetBtn'),
     modeAuto: $('modeAuto'), modeManual: $('modeManual'), micBtn: $('micBtn'), micLabel: $('micLabel'),
     startOverlay: $('startOverlay'), startBtn: $('startBtn'),
     tuningSheet: $('tuningSheet'), instTabs: $('instTabs'), tuningList: $('tuningList'),
     settingsSheet: $('settingsSheet'), a4Minus: $('a4Minus'), a4Plus: $('a4Plus'), a4Value: $('a4Value'),
-    playTone: $('playTone'), haptics: $('haptics')
+    playTone: $('playTone'), haptics: $('haptics'), volume: $('volume'), volumeValue: $('volumeValue'), pauseMic: $('pauseMic')
   };
+
+  var MIN_MIDI = 24;   // C1 – lowest note a custom string can be set to
+  var MAX_MIDI = 84;   // C6
 
   // ---------------------------------------------------------------- state
   var STORAGE_KEY = 'pockettuner.settings';
@@ -23,21 +27,36 @@
     selected: 0,           // manual string index
     a4: 440,
     playTone: true,
-    haptics: true
+    haptics: true,
+    volume: 100,           // reference tone volume, percent
+    pauseMic: true,        // stop the mic while a reference tone plays (iOS turns output down otherwise)
+    customNotes: {}        // instrument id -> ['D2', 'A2', ...]
   };
   try {
     var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     Object.keys(saved).forEach(function (k) { if (k in state) state[k] = saved[k]; });
   } catch (e) { /* ignore */ }
   if (!TUNINGS.find(state.instrument, state.tuning)) { state.instrument = 'guitar'; state.tuning = 'standard'; }
+  state.volume = Math.min(100, Math.max(20, Number(state.volume) || 100));
+  (function validateCustom() {
+    var clean = {};
+    var src = state.customNotes && typeof state.customNotes === 'object' ? state.customNotes : {};
+    Object.keys(src).forEach(function (k) {
+      var arr = src[k];
+      if (!Array.isArray(arr) || !arr.length) return;
+      try { arr.forEach(Pitch.parseNote); clean[k] = arr.slice(); } catch (e) { /* drop */ }
+    });
+    state.customNotes = clean;
+  })();
 
   function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
   }
 
   var current = null;      // { instrument, tuning }
-  var strings = [];        // [{ note, midi, freq, label, done, el }]
+  var strings = [];        // [{ note, midi, name, octave, el, up, down }]
   var done = {};           // string index -> true
+  var editing = false;     // per-string ▲▼ visible
 
   // ---------------------------------------------------------------- gauge
   function buildTicks() {
@@ -59,7 +78,20 @@
     el.needle.style.transform = 'rotate(' + (c * 0.9).toFixed(2) + 'deg)';
   }
 
-  // ---------------------------------------------------------------- tuning UI
+  // ---------------------------------------------------------------- tuning data
+  /** Notes of a tuning, resolving the custom tuning from saved state. */
+  function notesFor(instrument, tuning) {
+    if (!tuning.custom) return tuning.notes;
+    var savedNotes = state.customNotes[instrument.id];
+    return savedNotes && savedNotes.length ? savedNotes : TUNINGS.defaultNotes(instrument.id);
+  }
+
+  function pretty(note) { return note.replace('#', '♯').replace(/b(?=-?\d)/, '♭'); }
+
+  function letters(notes) {
+    return notes.map(function (n) { return pretty(n).replace(/-?\d+$/, ''); }).join(' ');
+  }
+
   function applyTuning(instrumentId, tuningId) {
     var found = TUNINGS.find(instrumentId, tuningId);
     if (!found) return;
@@ -67,18 +99,19 @@
     state.instrument = instrumentId;
     state.tuning = tuningId;
     done = {};
+    var notes = notesFor(found.instrument, found.tuning);
     el.tuningIcon.textContent = found.instrument.icon;
-    el.tuningInst.textContent = found.instrument.name;
+    el.tuningInst.textContent = found.instrument.name + (notes.length ? ' · ' + letters(notes) : '');
     el.tuningName.textContent = found.tuning.name;
-    rebuildStrings();
+    rebuildStrings(notes);
     if (state.selected >= strings.length) state.selected = 0;
     renderStrings();
     resetReadout();
     save();
   }
 
-  function rebuildStrings() {
-    strings = current.tuning.notes.map(function (n) {
+  function rebuildStrings(notes) {
+    strings = notes.map(function (n) {
       var midi = Pitch.parseNote(n);
       var nn = Pitch.noteName(midi);
       return { note: n, midi: midi, name: nn.name, octave: nn.octave };
@@ -86,19 +119,40 @@
     el.strings.innerHTML = '';
     el.strings.classList.toggle('chromatic', strings.length === 0);
     el.modeAuto.parentElement.hidden = strings.length === 0;
+    el.stringsTools.hidden = strings.length === 0;
     if (!strings.length) {
       el.strings.textContent = '近い音名を自動で表示します';
+      setEditing(false);
       return;
     }
     strings.forEach(function (s, i) {
+      var cell = document.createElement('div');
+      cell.className = 'string-cell';
+
+      var up = document.createElement('button');
+      up.type = 'button';
+      up.className = 'shift up';
+      up.textContent = '▲';
+      up.setAttribute('aria-label', (i + 1) + '弦を半音上げる');
+      up.addEventListener('click', function () { shiftString(i, 1); });
+
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'string-btn';
-      b.innerHTML = s.name.replace('#', '♯') + '<small>' + s.octave + '</small>';
+      b.innerHTML = pretty(s.name) + '<small>' + s.octave + '</small>';
       b.setAttribute('aria-label', (i + 1) + '弦 ' + s.note);
       b.addEventListener('click', function () { onStringTap(i); });
-      el.strings.appendChild(b);
-      s.el = b;
+
+      var down = document.createElement('button');
+      down.type = 'button';
+      down.className = 'shift down';
+      down.textContent = '▼';
+      down.setAttribute('aria-label', (i + 1) + '弦を半音下げる');
+      down.addEventListener('click', function () { shiftString(i, -1); });
+
+      cell.appendChild(up); cell.appendChild(b); cell.appendChild(down);
+      el.strings.appendChild(cell);
+      s.el = b; s.up = up; s.down = down;
     });
   }
 
@@ -108,6 +162,8 @@
     strings.forEach(function (s, i) {
       s.el.classList.toggle('done', !!done[i]);
       s.el.classList.toggle('active', isManual() ? i === state.selected : i === activeString);
+      s.up.disabled = s.midi >= MAX_MIDI;
+      s.down.disabled = s.midi <= MIN_MIDI;
     });
   }
 
@@ -121,6 +177,33 @@
     if (state.playTone) playReference(stringFreq(i));
     showTarget(i);
   }
+
+  /** Move one string up or down a semitone; the result becomes the instrument's custom tuning. */
+  function shiftString(i, delta) {
+    var midi = strings[i].midi + delta;
+    if (midi < MIN_MIDI || midi > MAX_MIDI) return;
+    var notes = strings.map(function (s) { return s.note; });
+    notes[i] = Pitch.noteName(midi).label;
+    state.customNotes[current.instrument.id] = notes;
+    var wasManual = isManual();
+    applyTuning(current.instrument.id, 'custom');
+    if (wasManual) { state.selected = i; save(); renderStrings(); showTarget(i); }
+    if (state.playTone) playReference(stringFreq(i), 1.2);
+  }
+
+  function setEditing(on) {
+    editing = !!on && strings.length > 0;
+    el.stringsWrap.classList.toggle('editing', editing);
+    el.editBtn.textContent = editing ? '完了' : '弦を半音ずつ調整';
+    el.editBtn.classList.toggle('active', editing);
+    el.resetBtn.hidden = !editing;
+  }
+  el.editBtn.addEventListener('click', function () { setEditing(!editing); });
+  el.resetBtn.addEventListener('click', function () {
+    if (!current) return;
+    delete state.customNotes[current.instrument.id];
+    applyTuning(current.instrument.id, current.instrument.tunings[0].id);
+  });
 
   function setMode(mode) {
     state.mode = mode;
@@ -136,7 +219,7 @@
   function showTarget(i) {
     var s = strings[i];
     if (!s) return;
-    el.note.textContent = s.name.replace('#', '♯');
+    el.note.textContent = pretty(s.name);
     el.octave.textContent = s.octave;
     el.cents.textContent = stringFreq(i).toFixed(1) + ' Hz';
   }
@@ -188,12 +271,15 @@
       var b = document.createElement('button');
       b.type = 'button';
       var active = inst.id === state.instrument && t.id === state.tuning;
+      var notes = notesFor(inst, t);
       b.className = 'tuning-item' + (active ? ' active' : '');
       b.innerHTML = '<div><div class="t-name">' + t.name + '</div><div class="t-notes">' +
-        (t.notes.length ? t.notes.join('  ').replace(/#/g, '♯').replace(/b(?=\d)/g, '♭') : 'すべての音') +
+        (notes.length ? notes.map(pretty).join('  ') : 'すべての音') +
+        (t.custom ? '  ·  ▲▼ で弦ごとに変更' : '') +
         '</div></div>' + (active ? '<span class="check">✓</span>' : '');
       b.addEventListener('click', function () {
         applyTuning(inst.id, t.id);
+        if (t.custom) setEditing(true);
         closeSheet(el.tuningSheet);
       });
       el.tuningList.appendChild(b);
@@ -207,53 +293,103 @@
 
   el.settingsBtn.addEventListener('click', function () { openSheet(el.settingsSheet); });
   function renderA4() { el.a4Value.textContent = state.a4; }
-  el.a4Minus.addEventListener('click', function () { state.a4 = Math.max(415, state.a4 - 1); renderA4(); save(); if (state.mode === 'manual') showTarget(state.selected); });
-  el.a4Plus.addEventListener('click', function () { state.a4 = Math.min(466, state.a4 + 1); renderA4(); save(); if (state.mode === 'manual') showTarget(state.selected); });
+  el.a4Minus.addEventListener('click', function () { state.a4 = Math.max(415, state.a4 - 1); renderA4(); save(); if (isManual()) showTarget(state.selected); });
+  el.a4Plus.addEventListener('click', function () { state.a4 = Math.min(466, state.a4 + 1); renderA4(); save(); if (isManual()) showTarget(state.selected); });
   el.playTone.checked = state.playTone;
   el.haptics.checked = state.haptics;
+  el.pauseMic.checked = state.pauseMic;
   el.playTone.addEventListener('change', function () { state.playTone = el.playTone.checked; save(); });
   el.haptics.addEventListener('change', function () { state.haptics = el.haptics.checked; save(); });
+  el.pauseMic.addEventListener('change', function () { state.pauseMic = el.pauseMic.checked; save(); });
+  function renderVolume() { el.volume.value = state.volume; el.volumeValue.textContent = state.volume + '%'; }
+  el.volume.addEventListener('input', function () {
+    state.volume = Number(el.volume.value);
+    renderVolume();
+    if (audio.master) audio.master.gain.value = state.volume / 100;
+  });
+  el.volume.addEventListener('change', function () {
+    save();
+    // let the user hear the new level right away
+    if (strings.length) playReference(stringFreq(isManual() ? state.selected : strings.length - 1), 1.0);
+  });
 
   el.modeAuto.addEventListener('click', function () { setMode('auto'); resetReadout(); });
   el.modeManual.addEventListener('click', function () { setMode('manual'); });
 
   // ---------------------------------------------------------------- audio
+  var MIC_CONSTRAINTS = {
+    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    video: false
+  };
   var audio = {
-    ctx: null, stream: null, analyser: null, buf: null, running: false,
+    ctx: null, stream: null, source: null, input: null, analyser: null, buf: null,
+    out: null, master: null,
+    running: false, paused: false, resumeTimer: 0,
     raf: 0, lastDetect: 0, wakeLock: null, muteUntil: 0
   };
   var history = [];          // recent { t, freq }
   var lastHeard = 0;
   var inTuneSince = 0;
 
-  function start() {
+  /** Create the AudioContext and the analysis / output graph once (must be called from a user gesture). */
+  function ensureContext() {
     var AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      return Promise.reject(new Error('このブラウザはマイク入力に対応していません。Safari で開いてください。'));
-    }
-    if (!audio.ctx) audio.ctx = new AC({ latencyHint: 'interactive' });
-    var ctx = audio.ctx;
-    var resume = ctx.state !== 'running' ? ctx.resume() : Promise.resolve();
-    return resume.then(function () {
-      return navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-        video: false
-      });
-    }).then(function (stream) {
-      audio.stream = stream;
-      var src = ctx.createMediaStreamSource(stream);
+    if (!AC) return null;
+    if (!audio.ctx) {
+      var ctx = audio.ctx = new AC({ latencyHint: 'interactive' });
+
       var hp = ctx.createBiquadFilter();
       hp.type = 'highpass';
       hp.frequency.value = 25;
       var analyser = ctx.createAnalyser();
       analyser.fftSize = 4096;
       analyser.smoothingTimeConstant = 0;
-      src.connect(hp);
       hp.connect(analyser);
+      audio.input = hp;
       audio.analyser = analyser;
       audio.buf = new Float32Array(analyser.fftSize);
-      audio.running = true;
+
+      // reference tone output: compressor keeps the loud, harmonic-rich tone from clipping
+      var comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -18;
+      comp.knee.value = 12;
+      comp.ratio.value = 12;
+      comp.attack.value = 0.003;
+      comp.release.value = 0.25;
+      var master = ctx.createGain();
+      master.gain.value = state.volume / 100;
+      comp.connect(master);
+      master.connect(ctx.destination);
+      audio.out = comp;
+      audio.master = master;
+    }
+    return audio.ctx;
+  }
+
+  function openMic() {
+    return navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS).then(function (stream) {
+      closeMic();
+      audio.stream = stream;
+      audio.source = audio.ctx.createMediaStreamSource(stream);
+      audio.source.connect(audio.input);
       history = [];
+    });
+  }
+
+  function closeMic() {
+    if (audio.stream) { audio.stream.getTracks().forEach(function (t) { t.stop(); }); audio.stream = null; }
+    if (audio.source) { try { audio.source.disconnect(); } catch (e) { /* ignore */ } audio.source = null; }
+  }
+
+  function start() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !ensureContext()) {
+      return Promise.reject(new Error('このブラウザはマイク入力に対応していません。Safari で開いてください。'));
+    }
+    var ctx = audio.ctx;
+    var resume = ctx.state !== 'running' ? ctx.resume() : Promise.resolve();
+    return resume.then(openMic).then(function () {
+      audio.running = true;
+      audio.paused = false;
       el.micBtn.classList.add('on');
       el.micLabel.textContent = 'マイク ON';
       resetReadout();
@@ -264,12 +400,41 @@
 
   function stop() {
     audio.running = false;
+    audio.paused = false;
+    clearTimeout(audio.resumeTimer);
     cancelAnimationFrame(audio.raf);
-    if (audio.stream) { audio.stream.getTracks().forEach(function (t) { t.stop(); }); audio.stream = null; }
+    closeMic();
     if (audio.wakeLock) { audio.wakeLock.release().catch(function () {}); audio.wakeLock = null; }
     el.micBtn.classList.remove('on');
     el.micLabel.textContent = 'マイク開始';
     resetReadout();
+  }
+
+  /** Release the microphone for a while (iOS lowers speaker output while capturing). */
+  function pauseMicFor(ms) {
+    if (!audio.running) return;
+    clearTimeout(audio.resumeTimer);
+    if (!audio.paused) {
+      audio.paused = true;
+      closeMic();
+      idle();
+    }
+    el.status.textContent = '参考音を再生中…';
+    audio.resumeTimer = setTimeout(resumeMic, ms);
+  }
+
+  function resumeMic() {
+    if (!audio.running || !audio.paused) return;
+    var ctx = audio.ctx;
+    (ctx.state !== 'running' ? ctx.resume() : Promise.resolve()).then(openMic).then(function () {
+      if (!audio.running) { closeMic(); return; }
+      audio.paused = false;
+      lastHeard = performance.now();
+      el.status.textContent = '弦を弾いてください';
+    }).catch(function () {
+      stop();
+      el.status.textContent = 'マイクを再開できませんでした。マイクボタンで再開してください';
+    });
   }
 
   function requestWakeLock() {
@@ -291,6 +456,7 @@
   function loop(now) {
     if (!audio.running) return;
     audio.raf = requestAnimationFrame(loop);
+    if (audio.paused) return;
     if (now - audio.lastDetect < DETECT_INTERVAL) return;
     audio.lastDetect = now;
     if (now < audio.muteUntil) return;
@@ -361,7 +527,7 @@
     var cents = Pitch.centsBetween(freq, targetFreq);
     if (idx !== activeString) { activeString = idx; renderStrings(); }
 
-    el.note.textContent = label.replace('#', '♯');
+    el.note.textContent = pretty(label);
     el.octave.textContent = octave;
     var rounded = Math.round(cents);
     el.cents.textContent = (rounded > 0 ? '+' : '') + rounded + ' cent';
@@ -396,35 +562,59 @@
   }
 
   // ---------------------------------------------------------------- reference tone
-  function playReference(freq) {
-    var AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    if (!audio.ctx) audio.ctx = new AC();
-    var ctx = audio.ctx;
+  /**
+   * Plucked-string style tone: two slightly detuned saws + triangle + octave
+   * and twelfth sines, through a closing lowpass and a percussive envelope.
+   * Phone speakers barely reproduce low fundamentals, so the harmonics carry
+   * the note; the compressor in ensureContext() keeps the level high.
+   */
+  function playReference(freq, dur) {
+    var ctx = ensureContext();
+    if (!ctx) return;
     if (ctx.state !== 'running') ctx.resume().catch(function () {});
-    var t0 = ctx.currentTime;
-    var dur = 1.6;
-    var gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(0.35, t0 + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    dur = dur || 2.2;
+    var t0 = ctx.currentTime + 0.02;
+
+    var env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t0);
+    env.gain.exponentialRampToValueAtTime(1, t0 + 0.012);
+    env.gain.setValueAtTime(1, t0 + 0.012);
+    env.gain.exponentialRampToValueAtTime(0.4, t0 + dur * 0.45);
+    env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
     var lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(Math.min(8000, freq * 12), t0);
-    lp.frequency.exponentialRampToValueAtTime(Math.max(300, freq * 2), t0 + dur);
-    [[freq, 'sawtooth', 0.5], [freq, 'triangle', 0.6], [freq * 2, 'sine', 0.15]].forEach(function (spec) {
+    lp.Q.value = 0.7;
+    lp.frequency.setValueAtTime(Math.min(9000, freq * 24), t0);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(600, freq * 4), t0 + dur);
+
+    var voices = [
+      [freq, 'sawtooth', 0.45, 0],
+      [freq, 'sawtooth', 0.35, 5],
+      [freq, 'triangle', 0.5, 0],
+      [freq * 2, 'sine', 0.3, 0],
+      [freq * 3, 'sine', 0.12, 0]
+    ];
+    voices.forEach(function (spec) {
       var o = ctx.createOscillator();
       o.type = spec[1];
       o.frequency.value = spec[0];
+      o.detune.value = spec[3];
       var g = ctx.createGain();
       g.gain.value = spec[2];
       o.connect(g); g.connect(lp);
       o.start(t0); o.stop(t0 + dur + 0.05);
     });
-    lp.connect(gain); gain.connect(ctx.destination);
-    // don't let the microphone "hear" our own reference tone
-    audio.muteUntil = performance.now() + dur * 1000;
-    history = [];
+    lp.connect(env);
+    env.connect(audio.out);
+
+    if (state.pauseMic && audio.running) {
+      pauseMicFor(dur * 1000 + 250);
+    } else {
+      // don't let the microphone "hear" our own reference tone
+      audio.muteUntil = performance.now() + dur * 1000 + 100;
+      history = [];
+    }
   }
 
   // ---------------------------------------------------------------- start / mic button
@@ -453,6 +643,7 @@
   // ---------------------------------------------------------------- init
   buildTicks();
   renderA4();
+  renderVolume();
   applyTuning(state.instrument, state.tuning);
   setMode(state.mode);
   resetReadout();

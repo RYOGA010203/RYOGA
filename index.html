@@ -69,7 +69,13 @@
       <div class="freq" id="freq">&nbsp;</div>
     </main>
 
-    <section class="strings" id="strings" aria-label="弦"></section>
+    <section class="strings-wrap" id="stringsWrap" aria-label="弦">
+      <div class="strings" id="strings"></div>
+      <div class="strings-tools" id="stringsTools">
+        <button type="button" class="tool-btn" id="editBtn">弦を半音ずつ調整</button>
+        <button type="button" class="tool-btn" id="resetBtn" hidden>標準に戻す</button>
+      </div>
+    </section>
 
     <footer class="bottom">
       <div class="mode" role="group" aria-label="モード">
@@ -125,12 +131,29 @@
         </div>
         <div class="setting-row">
           <div>
+            <div class="setting-title">参考音の音量</div>
+            <div class="setting-sub">本体の音量ボタンも上げてください</div>
+          </div>
+          <div class="range-wrap">
+            <input type="range" id="volume" min="20" max="100" step="5" value="100" aria-label="参考音の音量">
+            <span id="volumeValue">100%</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-title">参考音の間はマイクを一時停止</div>
+            <div class="setting-sub">iPhone はマイク使用中に音が小さくなるため ON 推奨</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="pauseMic" checked><span></span></label>
+        </div>
+        <div class="setting-row">
+          <div>
             <div class="setting-title">合ったときに振動</div>
             <div class="setting-sub">対応端末のみ</div>
           </div>
           <label class="switch"><input type="checkbox" id="haptics" checked><span></span></label>
         </div>
-        <p class="about">PocketTuner v1 · マイクの音声は端末内で処理され、送信されません。</p>
+        <p class="about">PocketTuner v1.1 · マイクの音声は端末内で処理され、送信されません。</p>
       </div>
     </div>
   </div>

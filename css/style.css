@@ -29,7 +29,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   display: flex; flex-direction: column;
   padding: var(--sat) 16px var(--sab);
   max-width: 520px; margin: 0 auto;
-  position: relative; overflow: hidden;
+  position: relative; overflow-x: hidden; overflow-y: auto;
 }
 
 /* ---- header ---- */
@@ -87,9 +87,26 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .freq { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 4px; min-height: 20px; }
 
 /* ---- strings ---- */
-.strings { display: flex; justify-content: center; gap: 8px; padding: 10px 6px 14px; }
+.strings-wrap { padding: 6px 0 10px; }
+.strings { display: flex; justify-content: center; gap: 8px; padding: 4px 6px; }
+.string-cell { flex: 1 1 0; max-width: 54px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.shift {
+  display: none; width: 100%; height: 30px; border-radius: 8px;
+  background: var(--panel); border: 1px solid var(--line); color: var(--muted); font-size: 12px;
+}
+.shift:active { background: var(--bg-2); color: var(--text); }
+.shift[disabled] { opacity: .3; }
+.editing .shift { display: block; }
+.strings-tools { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+.strings-tools[hidden] { display: none; }
+.tool-btn {
+  font-size: 13px; color: var(--muted); padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel);
+}
+.tool-btn:active { background: var(--bg-2); }
+.tool-btn.active { color: var(--text); border-color: var(--accent); }
 .string-btn {
-  flex: 1 1 0; max-width: 54px; aspect-ratio: 1; border-radius: 50%;
+  width: 100%; aspect-ratio: 1; border-radius: 50%;
   background: var(--panel); border: 2px solid var(--line);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   font-weight: 700; font-size: 18px; line-height: 1; position: relative;
@@ -104,7 +121,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   background: var(--green); color: #05130b; font-size: 12px; display: grid; place-items: center;
 }
 .string-btn.active.done { background: #14332a; border-color: var(--green); }
-.strings.chromatic { padding: 8px 0 14px; color: var(--muted); font-size: 13px; }
+.strings.chromatic { padding: 8px 0 4px; color: var(--muted); font-size: 13px; }
+.tuning-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tuning-inst { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- footer ---- */
 .bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 12px; }
@@ -169,7 +188,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .stepper { display: flex; align-items: center; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .stepper button { width: 40px; height: 36px; font-size: 20px; }
 .stepper span { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
-.switch { position: relative; width: 50px; height: 30px; display: inline-block; }
+.range-wrap { display: flex; align-items: center; gap: 8px; }
+.range-wrap input[type=range] { width: 120px; accent-color: var(--green); }
+.range-wrap span { min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; }
+.switch { position: relative; width: 50px; height: 30px; display: inline-block; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .switch span { position: absolute; inset: 0; background: var(--line); border-radius: 15px; transition: .2s; }
 .switch span::before { content: ""; position: absolute; width: 26px; height: 26px; left: 2px; top: 2px; background: #fff; border-radius: 50%; transition: .2s; }

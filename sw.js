@@ -1,5 +1,5 @@
 /* Service worker: caches the app shell so the tuner works offline. */
-const CACHE = 'pockettuner-v1';
+const CACHE = 'pockettuner-v2';
 const ASSETS = [
   './',
   './index.html',

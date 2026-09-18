@@ -26,7 +26,8 @@
         { id: 'open-g', name: 'オープンG', notes: ['D2', 'G2', 'D3', 'G3', 'B3', 'D4'] },
         { id: 'open-d', name: 'オープンD', notes: ['D2', 'A2', 'D3', 'F#3', 'A3', 'D4'] },
         { id: 'open-e', name: 'オープンE', notes: ['E2', 'B2', 'E3', 'G#3', 'B3', 'E4'] },
-        { id: '7-string', name: '7弦 スタンダード', notes: ['B1', 'E2', 'A2', 'D3', 'G3', 'B3', 'E4'] }
+        { id: '7-string', name: '7弦 スタンダード', notes: ['B1', 'E2', 'A2', 'D3', 'G3', 'B3', 'E4'] },
+        { id: 'custom', name: 'カスタム', custom: true, notes: [] }
       ]
     },
     {
@@ -37,7 +38,8 @@
         { id: 'standard', name: '4弦 スタンダード', notes: ['E1', 'A1', 'D2', 'G2'] },
         { id: 'drop-d', name: 'ドロップD', notes: ['D1', 'A1', 'D2', 'G2'] },
         { id: 'half-down', name: '半音下げ', notes: ['Eb1', 'Ab1', 'Db2', 'Gb2'] },
-        { id: '5-string', name: '5弦 スタンダード', notes: ['B0', 'E1', 'A1', 'D2', 'G2'] }
+        { id: '5-string', name: '5弦 スタンダード', notes: ['B0', 'E1', 'A1', 'D2', 'G2'] },
+        { id: 'custom', name: 'カスタム', custom: true, notes: [] }
       ]
     },
     {
@@ -47,7 +49,8 @@
       tunings: [
         { id: 'standard', name: 'スタンダード (High G)', notes: ['G4', 'C4', 'E4', 'A4'], keepOrder: true },
         { id: 'low-g', name: 'Low G', notes: ['G3', 'C4', 'E4', 'A4'] },
-        { id: 'baritone', name: 'バリトン', notes: ['D3', 'G3', 'B3', 'E4'] }
+        { id: 'baritone', name: 'バリトン', notes: ['D3', 'G3', 'B3', 'E4'] },
+        { id: 'custom', name: 'カスタム', custom: true, notes: [] }
       ]
     },
     {
@@ -60,6 +63,14 @@
     }
   ];
 
+  /** Starting point for a custom tuning: the instrument's first (standard) tuning. */
+  function defaultNotes(instrumentId) {
+    for (var i = 0; i < INSTRUMENTS.length; i++) {
+      if (INSTRUMENTS[i].id === instrumentId) return INSTRUMENTS[i].tunings[0].notes.slice();
+    }
+    return [];
+  }
+
   function find(instrumentId, tuningId) {
     for (var i = 0; i < INSTRUMENTS.length; i++) {
       var inst = INSTRUMENTS[i];
@@ -71,5 +82,5 @@
     return null;
   }
 
-  return { INSTRUMENTS: INSTRUMENTS, find: find };
+  return { INSTRUMENTS: INSTRUMENTS, find: find, defaultNotes: defaultNotes };
 });

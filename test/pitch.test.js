@@ -92,4 +92,11 @@ test('tunings are well formed', () => {
   }
   assert.ok(TUNINGS.find('guitar', 'standard'));
   assert.strictEqual(TUNINGS.find('guitar', 'nope'), null);
+  // every playable instrument offers a custom tuning that starts from its standard tuning
+  for (const inst of TUNINGS.INSTRUMENTS.filter((i) => i.id !== 'chromatic')) {
+    const custom = TUNINGS.find(inst.id, 'custom');
+    assert.ok(custom && custom.tuning.custom, `${inst.id} has no custom tuning`);
+    assert.deepStrictEqual(TUNINGS.defaultNotes(inst.id), inst.tunings[0].notes);
+  }
+  assert.deepStrictEqual(TUNINGS.defaultNotes('nope'), []);
 });
