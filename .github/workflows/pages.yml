@@ -1,39 +1,30 @@
-# Publishes the app to GitHub Pages on every push to the default branch.
-# The first run also enables Pages for the repository.
-name: Deploy to GitHub Pages
+# Runs the unit tests on every push, then mirrors the branch to gh-pages,
+# which GitHub Pages serves at https://ryoga010203.github.io/RYOGA/
+name: Test and publish
 
 on:
   push:
     branches: [claude/guitartuna-like-app-2i0x4w, main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Run unit tests
         run: node --test test/pitch.test.js
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mirror to gh-pages
+        run: git push --force origin HEAD:refs/heads/gh-pages

@@ -21,14 +21,19 @@ Safari で開くだけで使え、「ホーム画面に追加」すると全画�
 
 ## iPhone で使う
 
-マイクは **HTTPS** のページでしか使えないため、どこかに公開する必要があります。
-一番簡単なのは GitHub Pages です。
+公開 URL: **https://ryoga010203.github.io/RYOGA/**
 
-1. このリポジトリの **Settings › Pages** を開く
-2. **Build and deployment › Source** を「Deploy from a branch」にし、ブランチとフォルダ `/ (root)` を選んで保存
-3. 数分後に `https://<ユーザー名>.github.io/<リポジトリ名>/` で開ける
-4. iPhone の Safari でその URL を開き、「チューナーを開始」→ マイクを **許可**
-5. 共有ボタン → **ホーム画面に追加** でアプリ化（任意）
+1. iPhone の Safari で上の URL を開く
+2. 「チューナーを開始」をタップし、マイクを **許可** する
+3. 共有ボタン → **ホーム画面に追加** でアプリ化（任意）
+
+マイクは **HTTPS** のページでしか使えないため、GitHub Pages で公開しています。
+`gh-pages` ブランチが公開用で、開発ブランチに push すると GitHub Actions が
+テストを実行してから `gh-pages` に自動で同期します。
+
+もし URL が 404 になる場合は Pages が有効になっていません。リポジトリの
+**Settings › Pages › Build and deployment › Source** を「Deploy from a branch」にし、
+ブランチ `gh-pages`、フォルダ `/ (root)` を選んで保存してください。
 
 同じ Wi-Fi 上の Mac から試す場合は `npm start` で `http://localhost:8080` が立ちますが、
 iPhone からは HTTPS でないとマイクが使えない点に注意してください
