@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="icons/icon-192.png" type="image/png">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
   <div class="app">
@@ -73,7 +73,7 @@
       <div class="strings" id="strings"></div>
       <div class="strings-tools" id="stringsTools">
         <button type="button" class="tool-btn" id="editBtn">弦を半音ずつ調整</button>
-        <button type="button" class="tool-btn" id="resetBtn" hidden>標準に戻す</button>
+        <button type="button" class="tool-btn secondary" id="resetBtn" hidden>標準に戻す</button>
       </div>
     </section>
 
@@ -153,13 +153,13 @@
           </div>
           <label class="switch"><input type="checkbox" id="haptics" checked><span></span></label>
         </div>
-        <p class="about">PocketTuner v1.1 · マイクの音声は端末内で処理され、送信されません。</p>
+        <p class="about">PocketTuner v1.2 · マイクの音声は端末内で処理され、送信されません。</p>
       </div>
     </div>
   </div>
 
-  <script src="js/pitch.js"></script>
-  <script src="js/tunings.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/pitch.js?v=3"></script>
+  <script src="js/tunings.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>

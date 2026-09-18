@@ -100,11 +100,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .strings-tools { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
 .strings-tools[hidden] { display: none; }
 .tool-btn {
-  font-size: 13px; color: var(--muted); padding: 7px 14px; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--panel);
+  font-size: 14px; font-weight: 600; color: var(--text); padding: 10px 18px; border-radius: 999px;
+  border: 1px solid var(--accent); background: rgba(77, 163, 255, .14);
 }
-.tool-btn:active { background: var(--bg-2); }
-.tool-btn.active { color: var(--text); border-color: var(--accent); }
+.tool-btn:active { background: rgba(77, 163, 255, .3); }
+.tool-btn.active { background: var(--accent); color: #041022; }
+.tool-btn.secondary { color: var(--muted); font-weight: 500; border-color: var(--line); background: var(--panel); }
+.tool-btn.secondary:active { background: var(--bg-2); }
 .string-btn {
   width: 100%; aspect-ratio: 1; border-radius: 50%;
   background: var(--panel); border: 2px solid var(--line);

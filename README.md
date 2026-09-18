@@ -52,7 +52,8 @@ npm start     # ローカルサーバー (http://localhost:8080)
 - `js/tunings.js` — 楽器とチューニングの定義。ここに追記すればプリセットが増える
 - `js/app.js` — マイク入力、メーター、弦ボタン、参考音、設定など UI 全般
 - `css/style.css` — スタイル（ダークテーマ、iPhone のセーフエリア対応）
-- `sw.js` / `manifest.webmanifest` — PWA 用
+- `sw.js` / `manifest.webmanifest` — PWA 用。ネットワーク優先で取得し、オフライン時はキャッシュを使う
+- 公開後に CSS/JS を変えたら、`index.html` の `?v=` と `sw.js` の `VERSION` を同じ番号に上げる
 
 ## 動作環境
 
